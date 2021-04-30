@@ -1,0 +1,5 @@
+*.bak
+*.pk3
+.vscode
+*.backup*
+*.dbs
