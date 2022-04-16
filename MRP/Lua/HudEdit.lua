@@ -153,7 +153,7 @@ local cv_forcedisplay = CV_RegisterVar{
 local rseed = 0xBADE4404
 local function hudRandom()
 	rseed = $ ^^ ($ >> 13)
-	rseed = $ ^^ ($ >> 13)
+	rseed = $ ^^ ($ >> 11) -- i somehow managed to fuck up this one line so eeee
 	rseed = $ ^^ ($ << 21)
 	return ( (rseed*36548569) >> 4) & (FRACUNIT-1)
 end
@@ -166,6 +166,8 @@ end
 rawset(_G, "minrankplus", {
     enabled = true
 })
+
+rawset(_G, "MINIRANKINGPLUS_VERSION", {4, 0})
 
 local function sortfunc(a, b)
 	return a[1].kartstuff[k_position] < b[1].kartstuff[k_position]
