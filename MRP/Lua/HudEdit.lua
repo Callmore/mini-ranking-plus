@@ -225,7 +225,9 @@ local function hudThink()
 	onsameteam = {}
 
 	if not loadedconfig then
-		COM_BufInsertText(consoleplayer, "exec mrp.cfg -silent")
+		if consoleplayer and consoleplayer.valid then
+			COM_BufInsertText(consoleplayer, "exec mrp.cfg -silent")
+		end
 		loadedconfig = true
 	end
 
@@ -238,15 +240,28 @@ local function hudThink()
 			spinoutstart[#p] = nil
 		end
 
-		if HORNMOD_AddHorns
-		and p.noisemaker
-		and p.noisemaker.valid
-		and not (p.noisemaker.flags2 & MF2_DONTDRAW) then
-			hornmodIsHorn[#p] = true
-			--print(#p .. " is playing a horn.")
-		else
-			hornmodIsHorn[#p] = nil
-			--print(#p .. " is not playing a horn.")
+		if HORNMOD == "1" then
+			if p.hornmod
+			and p.hornmod.visual
+			and p.hornmod.visual.valid
+			and not (p.hornmod.visual.flags2 & MF2_DONTDRAW) then
+				local shake = max(p.hornmod.visual.shake or 0, 0)
+				shake = min((max($, 10) - 10) / 3, 15)
+
+				hornmodIsHorn[#p] = {
+					shutup = false,
+					x = hudRandomRange(-1 * shake, shake),
+					y = hudRandomRange(-1 * shake, shake),
+					scale = FixedDiv(p.hornmod.visual.scale, p.hornmod.visual.destscale) / 4,
+				}
+
+				-- Muffling (or SHUTUP)
+				if p.hornmod.muffled then
+					hornmodIsHorn[#p].shutup = true
+				end
+			else
+				hornmodIsHorn[#p] = nil
+			end
 		end
 		
 		if not (p.valid and not p.spectator) then continue end
@@ -367,7 +382,7 @@ local function drawMinirank(v, p)
 			sadgfx = v.cachePatch("K_ITSAD")
 		end
 
-		if HORNMOD_AddHorns and not hornmodgfx then
+		if HORNMOD == "1" and not hornmodgfx then
 			hornmodgfx = v.cachePatch("HORNA0")
 		end
 
@@ -591,32 +606,31 @@ local function drawMinirank(v, p)
 			v.draw(xpos-5, ypos+10, ranknumsgfx[min(max(0, rankplayer.kartstuff[k_position]), 16)], vflags)
 
 			--hornmod is funni
-			if HORNMOD_AddHorns and cv_showhorns.value then
+			if HORNMOD == "1" and cv_showhorns.value and consoleplayer.valid and consoleplayer.hornmod and not consoleplayer.hornmod.muted then
 				for i, k in ipairs(plrs) do
-					if hornmodIsHorn[#k] then
-						--print(k.shakefactor)
+					if hornmodIsHorn[#k] ~= nil and k.hornmod then
+						--tyron pls
+						local horndata = hornmodIsHorn[#k]
+
 						local facexoff = (i-1)*15
 						
 						local colour = v.getColormap(TC_RAINBOW, k.mo.color)
-						if k.sincelasthorn < 2 then --wait hornmod has this just INSIDE of it ezzzzzzz
+						if k.hornmod.flash then --wait hornmod has this just INSIDE of it ezzzzzzz
 							colour = v.getColormap(TC_RAINBOW, SKINCOLOR_YELLOW)
 						end --thx tyron
 
 						--yes i took this from hornmod because ezzzzzzzzzz
 						--thx for cool mod
 						--although also thx for multiple headaches and hornsoff
-						local shake = min((max(k.shakefactor, 10) - 10) / 3, 15)
-						
-						local destx = hudRandomRange(-1 * shake, shake)
-						local desty = hudRandomRange(-1 * shake, shake)
-						--tyron pls
-						
-						local scale = FRACUNIT
-						if k.noisemaker and k.noisemaker.valid then
-							scale = FixedDiv(k.noisemaker.scale, k.noisemaker.destscale)
+
+						local hornvflags = vflags
+						if horndata.shutup then
+							hornvflags = ($ & ~V_HUDTRANS) | V_HUDTRANSHALF
 						end
-						scale = $/4
-						v.drawScaled((xpos+facexoff+10 + destx)*FRACUNIT, (ypos+6 + desty)*FRACUNIT, scale, hornmodgfx, vflags, colour)
+
+						local ybob = FRACUNIT - sin(FixedAngle(FixedMul(360*FRACUNIT, FixedDiv((leveltime*12 % 360)*FRACUNIT, 360*FRACUNIT)))) -- Yes I just took this from hornmod
+
+						v.drawScaled((xpos+facexoff+10 + horndata.x) * FRACUNIT, (ypos+4 + horndata.y) * FRACUNIT + ybob, horndata.scale, hornmodgfx, hornvflags, colour)
 					end
 				end
 			end
